@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<style>
+    body {
+        padding: 20px;
+    }
+    * { margin:0; padding:0; }
+        html, body { height:100%; width:100%; }
+        canvas { height:90%; position:fixed; width:90%; }
+</style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Projected with Different Algorithms</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link active" href="./cube_hw4.html">Cube with one corner cut off</a>
+                    <a button class="nav-link active" href="./CubeWithBackfaceCulling.html">Backface Culling Algorithm</a>
+                    <a class="nav-link active" href="./cubeWithPainters.html">Painter's Algorithm</a>
+                    <a class="nav-link active" href="./zBuffer.html">Z-Buffer Algorithm</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+</head>
+
+<body>
+
+    <canvas></canvas>
+
+    <script type = "text/javascript">
+
+        function Project(sceneFaces, camPosition, camOrientation, canvasWidth, canvasHeight) {
+        var cosYaw = Math.cos(camOrientation[0]),
+        sinYaw = Math.sin(camOrientation[0]),
+        cosPitch = Math.cos(camOrientation[1]),
+        sinPitch = Math.sin(camOrientation[1]),
+        cosRoll = Math.cos(camOrientation[2]),
+        sinRoll = Math.sin(camOrientation[2]),
+        minDim = (canvasWidth < canvasHeight) ? canvasWidth : canvasHeight;
+
+    var projectedFaces = [];
+    var nbVertices;
+
+    for (id in sceneFaces) {
+        projectedFaces[id] = [];
+
+        for (j = 0; j < (nbVertices = sceneFaces[id].length) ; j++) { // For each vertex of the face:
+            // 3D Projection:
+            var temp1 = cosYaw*(sceneFaces[id][j][1] - camPosition[1]) - sinYaw*(sceneFaces[id][j][0] - camPosition[0]),
+                temp2 = cosRoll*(sceneFaces[id][j][2] - camPosition[2]) + sinRoll*(sinYaw*(sceneFaces[id][j][1] - camPosition[1]) + cosYaw*(sceneFaces[id][j][0] - camPosition[0])),
+
+                dX = cosRoll*(sinYaw*(sceneFaces[id][j][1] - camPosition[1]) + cosYaw*(sceneFaces[id][j][0] - camPosition[0])) - sinRoll*(sceneFaces[id][j][2] - camPosition[2]),
+                dY = sinPitch*temp2 + cosPitch*temp1,
+                dZ = cosPitch*temp2 - sinPitch*temp1;
+            // Transform to project on the screen:
+            projectedFaces[id].push([dX / dZ * minDim + canvasWidth/2,
+                                    dY / dZ * minDim + canvasHeight/2,
+                                    dZ]);
+        }
+    }
+    return projectedFaces;
+}
+function ComputeBarycentersDepths(faces) {
+	for (id in faces) {
+		var barDepth = 0;
+		for (j = 0; j < (nbVertices = faces[id].length) ; j++) { // For each vertex of the face.
+			barDepth += faces[id][j][2];
+		}
+		barDepth /= nbVertices;
+		faces[id].push(barDepth);
+	}
+}
+function Paint(projectedFaces, context) {
+	projectedFaces.sort(function(face1, face2) {
+		return (face1[face1.length-2]-face2[face2.length-2]); // Sorting by desc Z_bar (
+	});
+	for (id in projectedFaces) {
+		// Setting the color:
+		context.fillStyle = context.strokeStyle = projectedFaces[id][projectedFaces[id].length-1];
+		// Tracing the 2D shape:
+		context.beginPath();
+		context.moveTo(projectedFaces[id][0][0], projectedFaces[id][0][1]);
+		for (j = 1; j < (nbVertices = projectedFaces[id].length-2) ; j++) {
+			context.lineTo(projectedFaces[id][j][0], projectedFaces[id][j][1]);
+		}
+		context.closePath();
+		// Drawing it:
+		context.fill(); context.stroke();
+	}
+}
+function Render(sceneFaces,
+                context,
+                camPosition, camOrientation,
+                canvasWidth, canvasHeight,
+                colorFunction) {
+    // Projection:
+    var projectedFaces =
+        Project(sceneFaces, camPosition, camOrientation, canvasWidth, canvasHeight);
+
+    ComputeBarycentersDepths(projectedFaces);
+    colorFunction(projectedFaces, sceneFaces);
+
+    // Applying the Painter's Algo & Drawing:
+    Paint(projectedFaces, context);
+}
+window.requestAnimFrame = (function(){
+    return  window.requestAnimationFrame       ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame    ||
+        function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+        };
+})();
+
+// We define a simple 2x2x2 cube, made of quad faces
+// (building the mesh procedurally isn't complicated, but not the subject of this article):
+var cubeVertices = [[-1,  1,  1], [ 1,  1,  1], [ 1, -1,  1], [-1, -1,  1],
+                    [-1,  1, -1], [ 1,  1, -1], [ 1, -1, -1], [-1, -1, -1]];
+var cubesQuadriFaces = [[cubeVertices[0], cubeVertices[1], cubeVertices[2], cubeVertices[3]],
+                        [cubeVertices[4], cubeVertices[5], cubeVertices[6], cubeVertices[7]],
+                        [cubeVertices[1], cubeVertices[5], cubeVertices[6], cubeVertices[2]],
+                        [cubeVertices[4], cubeVertices[0], cubeVertices[3], cubeVertices[7]],
+                        [cubeVertices[4], cubeVertices[5], cubeVertices[1], cubeVertices[0]],
+                        [cubeVertices[3], cubeVertices[2], cubeVertices[6], cubeVertices[7]]]; 
+
+// And we display it:
+var canvas = document.getElementsByTagName("canvas")[0];
+canvas.width = canvas.height = 200;
+var context = canvas.getContext("2d");
+var timer = 0;
+
+(function animloop(){
+    // We request the next frame first to assure ~60fps:
+    requestAnimFrame(animloop);
+
+    // We compute the new state:
+    //    - we make the camera turn and roll around the cube while still focusing on its center:
+    var camPosition =     [    10*Math.cos(timer/87)*Math.sin(timer/57),
+                            10*Math.sin(timer/87)*Math.sin(timer/57),
+                            10*Math.cos(timer/57)];
+    var camOrientation =[   -Math.PI/2+timer%(Math.PI*87*2)/87,
+                            -timer%(Math.PI*57*2)/57,
+                            Math.cos(timer/33)/3];
+
+    //    - we set the colors over time:
+    var colorFunction = function colorFuncT(projectedFaces, originalFaces) {
+        var cosLum = Math.cos(timer/37), sinLum = Math.sin(timer/23);
+        for (id in projectedFaces) {
+            var hue = (timer/5)%360,
+                saturation = 75+3*projectedFaces[id][0][2],
+                luminosity = 50+(id-projectedFaces.length/2)/projectedFaces.length*20;
+            projectedFaces[id].push("hsl("+hue+","+saturation+"%,"+luminosity+"%)");
+        }
+    }
+    // We clear the previous frame:
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    // We render the new one:
+    Render(cubesQuadriFaces, context, camPosition, camOrientation,
+            canvas.width, canvas.height, colorFunction);
+    timer++;
+})();
+</script>
+</body>
+</html>
+
+
+

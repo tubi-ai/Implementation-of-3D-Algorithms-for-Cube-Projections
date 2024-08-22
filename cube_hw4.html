@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<style>
+    body {
+        padding: 20px;
+    }
+</style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Projected with Different Algorithms</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link active" href="./cube_hw4.html">Cube with one corner cut off</a>
+                    <a button class="nav-link active" href="./CubeWithBackfaceCulling.html">Backface Culling Algorithm</a>
+                    <a class="nav-link active" href="./cubeWithPainters.html">Painter's Algorithm</a>
+                    <a class="nav-link active" href="./zBuffer.html">Z-Buffer Algorithm</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+<title>Cube</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<script>
+    // constants
+    const COLOR_BG = "black";
+    const COLOR_CUBE = "yellow";
+    const SPEED_X = 0.02; // rps
+    const SPEED_Y = 0.02; // rps
+    const SPEED_Z = 0.02; // rps
+    const POINT3D = function(x, y, z) { this.x = x; this.y = y; this.z = z; };
+
+    // set up the canvas and context
+    var canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    var ctx = canvas.getContext("2d");
+
+    // dimensions
+    var h = document.documentElement.clientHeight;
+    var w = document.documentElement.clientWidth;
+    canvas.height = h;
+    canvas.width = w;
+
+    // colours and lines
+    ctx.fillStyle = COLOR_BG;
+    ctx.strokeStyle = COLOR_CUBE;
+    ctx.lineWidth = w / 100;
+    ctx.lineCap = "round";
+
+    // cube parameters
+    var cx = w / 2;
+    var cy = h / 2;
+    var cz = 0;
+    var size = h / 4;
+    var size1 = h / 50;
+    var size2 = h / 20;
+    var vertices = [
+        new POINT3D(cx - size, cy - size, cz - size), //0
+        new POINT3D(cx + size, cy - size, cz - size), //1
+        new POINT3D(cx + size, cy + size, cz - size), //2
+        new POINT3D(cx - size, cy + size, cz - size), //3
+        new POINT3D(cx - size, cy - size, cz + size), //4
+        new POINT3D(cx + size1, cy - size, cz + size), //5
+        new POINT3D(cx + size, cy - size, cz + size1), //6
+        new POINT3D(cx + size, cy - size1, cz + size ), //7
+        new POINT3D(cx + size, cy + size, cz + size), //8
+        new POINT3D(cx - size, cy + size, cz + size) //9
+    ];
+    var edges = [
+        [0, 1], [1, 2], [2, 3], [3, 0], // back face
+        [4, 5], [5, 7], [7, 8], [8, 9], [9, 4], // front face
+        [0, 4], [1, 6], [5,6], [6,7], [2, 8], [3, 9],  // connecting sides
+    ];
+    // set up the animation loop
+    var timeDelta, timeLast = 0;
+    requestAnimationFrame(loop);
+
+    function loop(timeNow) {
+
+        // calculate the time difference
+        timeDelta = timeNow - timeLast;
+        timeLast = timeNow;
+
+        // background
+        ctx.fillRect(0, 0, w, h);
+
+        // rotate the cube along the z axis
+        let angle = timeDelta * 0.001 * SPEED_Z * Math.PI * 2;
+        for (let v of vertices) {
+            let dx = v.x - cx;
+            let dy = v.y - cy;
+            let x = dx * Math.cos(angle) - dy * Math.sin(angle);
+            let y = dx * Math.sin(angle) + dy * Math.cos(angle);
+            v.x = x + cx;
+            v.y = y + cy;
+        }
+
+        // rotate the cube along the x axis
+        angle = timeDelta * 0.001 * SPEED_X * Math.PI * 2;
+        for (let v of vertices) {
+            let dy = v.y - cy;
+            let dz = v.z - cz;
+            let y = dy * Math.cos(angle) - dz * Math.sin(angle);
+            let z = dy * Math.sin(angle) + dz * Math.cos(angle);
+            v.y = y + cy;
+            v.z = z + cz;
+        }
+
+        // rotate the cube along the y axis
+        angle = timeDelta * 0.001 * SPEED_Y * Math.PI * 2;
+        for (let v of vertices) {
+            let dx = v.x - cx;
+            let dz = v.z - cz;
+            let x = dz * Math.sin(angle) + dx * Math.cos(angle);
+            let z = dz * Math.cos(angle) - dx * Math.sin(angle);
+            v.x = x + cx;
+            v.z = z + cz;
+        }
+
+        // draw each edge
+        for (let edge of edges) {
+            ctx.beginPath();
+            ctx.moveTo(vertices[edge[0]].x, vertices[edge[0]].y);
+            ctx.lineTo(vertices[edge[1]].x, vertices[edge[1]].y);
+            ctx.stroke();
+        }
+
+        // call the next frame
+        requestAnimationFrame(loop);
+
+        //back face algorithm
+       /// vertices[0].x * vertices[1].y *  // 1st face (0-1-2-3)
+        //2nd face (6-1-2-8-7)
+        //3rd face (5-6-7)
+        //4th face(4-5--7-8-9)
+        //5th face (0-3-9-4)
+        //6th face (2-8-9-3)
+        //7th face (0-1-6-5-4)
+    }
+</script>
+</body>
+</html>
